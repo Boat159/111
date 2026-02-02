@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="th" style="height: 100%;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MrPr Social Map</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Icons & Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- LOADING SCREEN -->
+    <div id="splashScreen">
+        <h1 class="mrpr-logo">MrPr</h1>
+        <p class="text-cyan-500 mt-2 text-xs tracking-[0.3em] uppercase font-bold">Social Map System</p>
+        <div class="loading-bar"><div class="loading-progress"></div></div>
+        <p id="statusText" class="mt-4 text-gray-400 text-xs">Loading User Profile...</p>
+    </div>
+
+    <!-- MAP -->
+    <div id="map"></div>
+
+    <!-- MAIN UI -->
+    <div id="mainUI" class="hidden opacity-0 transition-opacity duration-700">
+        
+        <!-- Profile Button -->
+        <button onclick="openProfileModal()" class="fixed top-8 left-4 z-[2000] flex items-center gap-2 glass-panel pl-2 pr-4 py-2 rounded-full active:scale-95 transition-transform group">
+            <div class="w-10 h-10 rounded-full border-2 border-cyan-500 overflow-hidden bg-gray-800 relative">
+                <img id="btnProfileAvatar" src="" class="w-full h-full object-cover hidden">
+                <i id="btnProfileIcon" class="fa-solid fa-user text-cyan-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></i>
+            </div>
+            <span id="btnProfileName" class="font-bold text-sm max-w-[80px] truncate">Guest</span>
+        </button>
+
+        <!-- Add Button -->
+        <button onclick="startAddMode()" 
+                class="fixed top-8 left-1/2 -translate-x-1/2 z-[2000] bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-full shadow-[0_5px_20px_rgba(8,145,178,0.4)] flex items-center gap-3 transition-transform active:scale-95 font-bold tracking-wide group border-2 border-white/20">
+            <i class="fa-solid fa-plus text-lg group-hover:rotate-90 transition-transform"></i> 
+            <span>โพสต์</span>
+        </button>
+
+        <!-- Right Controls -->
+        <div class="fixed top-8 right-4 z-[2000] flex flex-col gap-3">
+            <button id="btnLocate" onclick="locateUser()" class="w-12 h-12 rounded-full glass-panel text-cyan-400 flex items-center justify-center active:scale-90 transition-transform hover:text-white">
+                <i id="iconLocate" class="fa-solid fa-location-crosshairs text-xl"></i>
+            </button>
+            <div id="connectionStatus" class="w-12 h-12 rounded-full glass-panel flex items-center justify-center border-green-500/50">
+                <i class="fa-solid fa-signal text-green-400"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div id="profileModal" class="fixed inset-0 z-[4000] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeProfileModal()"></div>
+        <div class="relative bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-[popIn_0.3s_ease-out]">
+            <div class="p-6 flex flex-col items-center">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">ตั้งค่าโปรไฟล์</h3>
+                
+                <div class="relative w-32 h-32 mb-6 group cursor-pointer">
+                    <div class="w-full h-full rounded-full border-4 border-cyan-500 overflow-hidden bg-gray-100 shadow-xl relative">
+                        <img id="profilePreview" class="w-full h-full object-cover hidden">
+                        <i id="profileIconPlaceholder" class="fa-solid fa-user-astronaut text-5xl text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></i>
+                    </div>
+                    <div class="absolute bottom-0 right-0 bg-cyan-600 text-white w-10 h-10 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <input type="file" id="profileUpload" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleProfileImage(this)">
+                </div>
+
+                <div class="w-full mb-6">
+                    <label class="text-xs text-gray-500 font-bold ml-1">ชื่อที่แสดง</label>
+                    <input type="text" id="profileNameInput" class="w-full bg-gray-100 border-2 border-transparent focus:border-cyan-500 rounded-xl px-4 py-3 font-bold text-center text-lg outline-none transition-colors" placeholder="ตั้งชื่อเท่ๆ...">
+                </div>
+
+                <button onclick="saveProfile()" class="w-full bg-cyan-600 text-white py-3 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-transform">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD MODE -->
+    <div id="addModeUI" class="fixed inset-0 z-[2000] hidden flex-col pointer-events-none">
+        <div class="mt-28 text-center pointer-events-auto">
+            <span class="glass-panel text-cyan-100 px-6 py-2 rounded-full text-sm font-medium shadow-lg">เลื่อนเป้าให้ตรงตำแหน่ง</span>
+        </div>
+        <div class="crosshair">
+            <i class="fa-solid fa-location-dot text-6xl text-red-600 drop-shadow-[0_5px_5px_rgba(0,0,0,0.3)] -mt-10 animate-bounce"></i>
+            <div class="w-4 h-1.5 bg-black/40 blur-[2px] rounded-full mx-auto mt-1"></div>
+        </div>
+        <div class="mt-auto mb-10 flex justify-center gap-4 pointer-events-auto px-6">
+            <button onclick="cancelAddMode()" class="bg-white text-gray-800 px-6 py-3 rounded-full font-bold shadow-lg">ยกเลิก</button>
+            <button onclick="confirmLocation()" class="bg-cyan-600 text-white px-10 py-3 rounded-full font-bold shadow-lg border-2 border-cyan-400">ยืนยัน</button>
+        </div>
+    </div>
+
+    <!-- INPUT MODAL -->
+    <div id="contentModal" class="fixed inset-0 z-[3000] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity opacity-0" id="modalBackdrop"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transform translate-y-full transition-transform duration-300 flex flex-col max-h-[90vh]" id="modalContent">
+            
+            <div class="w-full flex justify-center pt-3" onclick="closeModal()"><div class="w-12 h-1.5 bg-gray-300 rounded-full"></div></div>
+            
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800"><span class="text-cyan-600">MrPr</span> Post</h3>
+                <button onclick="closeModal()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="px-6 py-4 flex-1 overflow-y-auto">
+                <div class="flex items-center gap-3 mb-5 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <img id="postAsAvatar" src="" class="w-10 h-10 rounded-full object-cover bg-gray-200 border border-cyan-500">
+                    <div>
+                        <p class="text-xs text-gray-500">โพสต์ในชื่อ</p>
+                        <p id="postAsName" class="font-bold text-gray-800 text-sm">User</p>
+                    </div>
+                    <button onclick="closeModal(); openProfileModal();" class="ml-auto text-xs text-cyan-600 font-bold underline">เปลี่ยน</button>
+                </div>
+
+                <div class="flex bg-gray-100 p-1 rounded-xl mb-5">
+                    <button onclick="switchTab('text')" id="tab-text" class="flex-1 py-2 rounded-lg text-sm font-bold bg-white text-cyan-600 shadow transition-all">ข้อความ</button>
+                    <button onclick="switchTab('image')" id="tab-image" class="flex-1 py-2 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-800 transition-all">รูปภาพ</button>
+                    <button onclick="switchTab('draw')" id="tab-draw" class="flex-1 py-2 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-800 transition-all">วาด</button>
+                </div>
+
+                <div class="min-h-[220px]">
+                    <div id="panel-text" class="space-y-2">
+                        <textarea id="textContent" rows="4" class="w-full bg-gray-50 text-gray-800 border border-gray-200 rounded-xl p-4 focus:border-cyan-500 outline-none resize-none text-lg" placeholder="พิมพ์ข้อความ..."></textarea>
+                    </div>
+                    <div id="panel-image" class="hidden">
+                        <div class="relative w-full h-56 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:border-cyan-500/50 transition-colors">
+                            <input type="file" id="imageInput" accept="image/*" class="absolute inset-0 opacity-0 z-10 w-full h-full" onchange="handleImage(this)">
+                            <div id="imgPlaceholder" class="text-center">
+                                <i class="fa-regular fa-image text-4xl text-gray-400 mb-3"></i>
+                                <p class="text-sm text-gray-500">แตะเพื่อเลือกรูป</p>
+                            </div>
+                            <img id="imgPreview" class="hidden w-full h-full object-contain rounded-lg">
+                        </div>
+                    </div>
+                    <div id="panel-draw" class="hidden relative">
+                        <div class="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-inner">
+                            <canvas id="drawingCanvas" class="draw-area" height="220"></canvas>
+                        </div>
+                        <div class="flex gap-4 mt-4 justify-center">
+                            <div onclick="setColor('#000000')" class="w-8 h-8 rounded-full bg-black border-2 border-white cursor-pointer ring-2 ring-transparent focus:ring-cyan-400 shadow"></div>
+                            <div onclick="setColor('#ef4444')" class="w-8 h-8 rounded-full bg-red-500 border-2 border-white cursor-pointer shadow"></div>
+                            <div onclick="setColor('#06b6d4')" class="w-8 h-8 rounded-full bg-cyan-500 border-2 border-white cursor-pointer shadow"></div>
+                            <button onclick="clearCanvas()" class="px-4 py-1 bg-gray-200 rounded-full text-xs font-bold text-gray-600">ล้าง</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-gray-100 bg-white pb-8">
+                <button onclick="savePost()" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-transform">POST NOW</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW MODAL -->
+    <div id="viewModal" class="fixed inset-0 z-[4000] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onclick="closeViewModal()"></div>
+        <div class="relative bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-[popIn_0.3s_ease-out]">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-3 bg-gray-50">
+                <img id="viewAvatar" src="" class="w-10 h-10 rounded-full object-cover bg-gray-200 border border-cyan-500 hidden">
+                <div id="viewAvatarPlaceholder" class="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-600 font-bold border border-cyan-200">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                
+                <div>
+                    <h4 id="viewAuthor" class="font-bold text-gray-800">User</h4>
+                    <p class="text-xs text-gray-400" id="viewTime">Time</p>
+                </div>
+                <button onclick="closeViewModal()" class="ml-auto w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="bg-gray-100 flex items-center justify-center min-h-[200px] max-h-[60vh] overflow-auto">
+                <img id="viewImage" src="" class="hidden w-full h-auto object-contain">
+                <p id="viewText" class="hidden p-8 text-xl text-gray-800 text-center font-medium leading-relaxed"></p>
+            </div>
+
+            <div class="p-3 border-t border-gray-100 flex justify-end bg-white">
+                <button onclick="deleteCurrentPost()" class="text-red-500 text-xs font-bold px-4 py-2 rounded-lg hover:bg-red-50 flex items-center gap-2 transition-colors">
+                    <i class="fa-solid fa-trash"></i> ลบโพสต์
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Custom JS -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
+
+          
